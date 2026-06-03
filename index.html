@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시세선 — 중고차 적정가 분석</title>
+<meta name="description" content="매물 정보를 입력하면 실거래 데이터 기반 AI가 적정가를 예측하고 허위매물·사기 위험도를 진단합니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+:root{
+  --bg:#f4f5f7; --surface:#ffffff; --surface2:#fafbfc;
+  --line:#e3e6ea; --line2:#d4d8dd;
+  --ink:#1a1d23; --ink2:#3c424c; --muted:#6b727e; --faint:#9aa0ab;
+  --brand:#1b5e8c; --brand-dark:#13456a; --brand-soft:#e8f1f7;
+  --fair:#2e7d54; --fair-bg:#eaf5ef; --fair-line:#bfe0cd;
+  --warn:#a6700d; --warn-bg:#fbf3e3; --warn-line:#ecd9ad;
+  --danger:#b3382f; --danger-bg:#fbece9; --danger-line:#f0c5bd;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;
+  --shadow:0 1px 2px rgba(26,29,35,.04),0 4px 14px rgba(26,29,35,.05);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;font-size:15px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+a{color:inherit;text-decoration:none}
+
+.nav{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:60px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{width:30px;height:30px;border-radius:7px;background:var(--brand);display:grid;place-items:center;flex-shrink:0}
+.brand .logo svg{width:17px;height:17px}
+.brand .name{font-weight:700;font-size:17px;letter-spacing:-.3px;color:var(--ink)}
+.brand .name span{color:var(--brand)}
+.nav-meta{display:flex;align-items:center;gap:22px;font-size:13px;color:var(--muted)}
+.nav-meta .pill{font-family:var(--mono);font-size:12px;padding:4px 11px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--ink2)}
+@media(max-width:640px){.nav-meta .hide-sm{display:none}}
+
+.hero{background:var(--surface);border-bottom:1px solid var(--line);padding:42px 0 38px}
+.hero h1{font-size:clamp(25px,4vw,34px);font-weight:700;letter-spacing:-.8px;line-height:1.2;max-width:620px}
+.hero h1 .em{color:var(--brand)}
+.hero p{color:var(--ink2);font-size:16px;margin-top:14px;max-width:560px}
+.kpi-row{display:flex;margin-top:30px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface2);max-width:760px}
+.kpi{flex:1;padding:16px 20px;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:none}
+.kpi .v{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.5px;color:var(--ink)}
+.kpi .v small{font-size:13px;color:var(--muted);font-weight:400}
+.kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
+@media(max-width:640px){.kpi-row{flex-wrap:wrap}.kpi{flex:1 1 50%;border-bottom:1px solid var(--line)}.kpi:nth-child(2n){border-right:none}}
+
+.app{display:grid;grid-template-columns:340px 1fr;gap:24px;padding:28px 0 60px;align-items:start}
+@media(max-width:880px){.app{grid-template-columns:1fr}}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.form-panel{position:sticky;top:84px}
+@media(max-width:880px){.form-panel{position:static}}
+.panel-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.panel-head .t{font-weight:600;font-size:15px}
+.panel-head .req{font-size:12px;color:var(--faint)}
+.panel-body{padding:20px 22px}
+.field{margin-bottom:16px}
+.field:last-of-type{margin-bottom:0}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--ink2);margin-bottom:6px}
+.field label .tag{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+.ctrl{width:100%;height:42px;background:var(--surface);border:1px solid var(--line2);border-radius:9px;padding:0 13px;font-size:14px;font-family:var(--sans);color:var(--ink);transition:border-color .14s,box-shadow .14s}
+input.ctrl{font-family:var(--mono);letter-spacing:-.2px}
+select.ctrl{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%236b727e' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+.ctrl:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(27,94,140,.12)}
+.ctrl::placeholder{color:var(--faint);font-family:var(--sans)}
+.sep{height:1px;background:var(--line);margin:18px 0;position:relative}
+.sep span{position:absolute;top:-8px;left:0;background:var(--surface);padding-right:10px;font-size:11px;color:var(--faint);letter-spacing:.5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.btn{width:100%;height:46px;border:none;border-radius:10px;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:15px;transition:background .14s,transform .1s,box-shadow .2s}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 2px 8px rgba(27,94,140,.25)}
+.btn-primary:hover{background:var(--brand-dark);box-shadow:0 4px 14px rgba(27,94,140,.32)}
+.btn-primary:active{transform:translateY(1px)}
+.btn-ghost{width:100%;height:42px;background:var(--surface);border:1px solid var(--line2);border-radius:10px;cursor:pointer;font-family:var(--sans);font-weight:500;font-size:13.5px;color:var(--ink2);margin-top:10px;transition:all .14s;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-ghost:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.btn-ghost svg{width:15px;height:15px}
+
+.result{min-height:460px}
+.empty{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.empty-top{padding:44px 36px 38px;text-align:center;border-bottom:1px solid var(--line);background:var(--surface2)}
+.empty-top .ico{width:52px;height:52px;margin:0 auto 16px;border-radius:13px;background:var(--brand-soft);display:grid;place-items:center}
+.empty-top .ico svg{width:26px;height:26px;stroke:var(--brand)}
+.empty-top h2{font-size:18px;font-weight:600;margin-bottom:8px}
+.empty-top p{color:var(--muted);font-size:14px;max-width:400px;margin:0 auto 20px}
+.empty-cta{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 22px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-family:var(--sans);font-weight:600;font-size:14.5px;cursor:pointer;box-shadow:0 2px 8px rgba(27,94,140,.25);transition:background .14s}
+.empty-cta:hover{background:var(--brand-dark)}
+.empty-cta svg{width:16px;height:16px}
+.steps{padding:28px 36px 32px}
+.steps h3{font-size:12px;font-weight:600;color:var(--faint);letter-spacing:.6px;text-transform:uppercase;margin-bottom:18px}
+.step{display:flex;gap:14px;padding:13px 0;border-top:1px solid var(--line)}
+.step:first-of-type{border-top:none;padding-top:0}
+.step .n{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--brand);width:24px;flex-shrink:0}
+.step .c .st{font-size:14px;font-weight:600;margin-bottom:2px}
+.step .c .sd{font-size:13px;color:var(--muted);line-height:1.5}
+
+.hidden{display:none}
+.reveal{animation:rv .42s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rv{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.verdict{border:1px solid;border-radius:14px;padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow)}
+.verdict.fair{background:var(--fair-bg);border-color:var(--fair-line)}
+.verdict.warn{background:var(--warn-bg);border-color:var(--warn-line)}
+.verdict.danger{background:var(--danger-bg);border-color:var(--danger-line)}
+.v-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.v-left{display:flex;align-items:center;gap:13px}
+.v-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.verdict.fair .v-dot{background:var(--fair)} .verdict.warn .v-dot{background:var(--warn)} .verdict.danger .v-dot{background:var(--danger)}
+.v-label .grade{font-size:20px;font-weight:700;letter-spacing:-.4px;line-height:1.1}
+.verdict.fair .grade{color:var(--fair)} .verdict.warn .grade{color:var(--warn)} .verdict.danger .grade{color:var(--danger)}
+.v-label .sub{font-size:12.5px;color:var(--ink2);margin-top:1px}
+.v-score{text-align:right}
+.v-score .sc{font-family:var(--mono);font-size:30px;font-weight:600;line-height:1;letter-spacing:-1px}
+.verdict.fair .sc{color:var(--fair)} .verdict.warn .sc{color:var(--warn)} .verdict.danger .sc{color:var(--danger)}
+.v-score .sl{font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.5px;margin-top:2px}
+.v-bar{height:6px;background:rgba(26,29,35,.07);border-radius:99px;margin-top:18px;overflow:hidden}
+.v-fill{height:100%;border-radius:99px;transition:width .85s cubic-bezier(.2,.8,.2,1)}
+.verdict.fair .v-fill{background:var(--fair)} .verdict.warn .v-fill{background:var(--warn)} .verdict.danger .v-fill{background:var(--danger)}
+.v-msg{margin-top:15px;font-size:14px;color:var(--ink);line-height:1.6}
+
+.mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:620px){.mgrid{grid-template-columns:repeat(2,1fr)}}
+.mcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.mcard .ml{font-size:12px;color:var(--muted);margin-bottom:8px}
+.mcard .mv{font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:-.5px;color:var(--ink)}
+.mcard .mv small{font-size:12px;color:var(--muted);font-weight:400}
+.mcard .md{font-family:var(--mono);font-size:12px;margin-top:4px}
+.pos{color:var(--danger)} .neg{color:var(--fair)} .neu{color:var(--muted)}
+
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden}
+.sec-h{padding:16px 22px;border-bottom:1px solid var(--line)}
+.sec-h .st{font-size:14.5px;font-weight:600}
+.sec-h .sd{font-size:12.5px;color:var(--muted);margin-top:2px}
+.sec-b{padding:20px 22px}
+
+.bd{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.bd-cell{flex:1;padding:16px;text-align:center;border-right:1px solid var(--line)}
+.bd-cell:last-child{border-right:none}
+.bd-cell.final{background:var(--brand-soft)}
+.bd-cell .l{font-size:11.5px;color:var(--muted);margin-bottom:7px}
+.bd-cell .v{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.5px}
+.bd-cell.final .v{color:var(--brand)}
+.bd-cell .op{font-family:var(--mono);color:var(--faint);font-size:13px}
+@media(max-width:620px){.bd{flex-direction:column}.bd-cell{border-right:none;border-bottom:1px solid var(--line)}.bd-cell:last-child{border-bottom:none}.bd-cell[style]{display:none}}
+
+.fac{display:flex;flex-direction:column}
+.fac-row{display:grid;grid-template-columns:140px 1fr 64px;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.fac-row:first-child{border-top:none}
+@media(max-width:560px){.fac-row{grid-template-columns:100px 1fr 54px}}
+.fac-name{font-size:13px;color:var(--ink2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fac-track{height:7px;background:var(--bg);border-radius:99px;position:relative;overflow:hidden}
+.fac-bar{position:absolute;top:0;bottom:0;border-radius:99px;transition:width .7s ease}
+.fac-bar.up{background:var(--danger);left:50%} .fac-bar.down{background:var(--fair);right:50%}
+.fac-track::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line2)}
+.fac-val{font-family:var(--mono);font-size:13px;font-weight:600;text-align:right}
+.fac-val.up{color:var(--danger)} .fac-val.down{color:var(--fair)}
+
+.chk{display:flex;flex-direction:column}
+.chk-row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink2);line-height:1.55}
+.chk-row:first-child{border-top:none}
+.chk-row.alert{color:var(--danger);font-weight:500}
+.chk-ico{flex-shrink:0;width:18px;height:18px;margin-top:1px}
+.chk-ico svg{width:18px;height:18px}
+
+.spec{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:18px;background:var(--surface);box-shadow:var(--shadow)}
+.spec-item{flex:1 1 auto;min-width:110px;padding:13px 18px;border-right:1px solid var(--line)}
+.spec-item:last-child{border-right:none}
+.spec-item .sl{font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.spec-item .sv{font-size:14px;font-weight:600;color:var(--ink)}
+
+footer{background:var(--surface);border-top:1px solid var(--line);padding:34px 0 44px}
+.foot{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
+.foot .col h4{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:9px}
+.foot .col p{font-size:12.5px;color:var(--muted);margin-bottom:3px}
+.foot-note{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint);line-height:1.65}
+
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .65s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h2m14 0h2M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM5 17l1.5-6.5A2 2 0 018.4 9h7.2a2 2 0 011.9 1.5L19 17"/></svg>
+      </div>
+      <div class="name">시세<span>선</span></div>
+    </div>
+    <div class="nav-meta">
+      <span class="hide-sm">중고차 적정가 분석</span>
+      <span class="pill">한동대 · 러닝머신팀</span>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap">
+    <h1>이 매물, <span class="em">시세에 맞나요?</span></h1>
+    <p>전국 실거래 매물 데이터를 학습한 AI가 적정가를 산출하고, 시세 대비 편차를 분석해 허위매물·사기 위험을 진단합니다.</p>
+    <div class="kpi-row">
+      <div class="kpi"><div class="v">44,623<small> 건</small></div><div class="l">학습 매물</div></div>
+      <div class="kpi"><div class="v" id="k-acc">—</div><div class="l">예측 정확도 R²</div></div>
+      <div class="kpi"><div class="v" id="k-err">—</div><div class="l">평균 오차율</div></div>
+      <div class="kpi"><div class="v">6<small> 개</small></div><div class="l">브랜드 · 303 모델</div></div>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+  <div class="app">
+
+    <div class="panel form-panel">
+      <div class="panel-head">
+        <span class="t">매물 정보</span>
+        <span class="req">* 필수</span>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>브랜드 *</label>
+          <select class="ctrl" id="brand"></select>
+        </div>
+        <div class="field">
+          <label>모델 *</label>
+          <select class="ctrl" id="model"></select>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>연식 *</label>
+            <input class="ctrl" type="number" id="year" value="2021" min="2006" max="2026">
+          </div>
+          <div class="field">
+            <label>매물가 <span class="tag">만원</span></label>
+            <input class="ctrl" type="number" id="price" value="2500" min="100" max="20000" step="10">
+          </div>
+        </div>
+
+        <div class="sep"><span>선택 입력</span></div>
+
+        <div class="field">
+          <label>주행거리 <span class="tag">km</span></label>
+          <input class="ctrl" type="number" id="mileage" placeholder="미입력 시 평균값 적용" min="0" max="500000" step="1000">
+        </div>
+        <div class="field">
+          <label>지역</label>
+          <select class="ctrl" id="region"></select>
+        </div>
+
+        <div style="margin-top:22px">
+          <button class="btn btn-primary" id="analyze">분석하기</button>
+          <button class="btn-ghost" id="sample">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 11l-4 4-4-4M12 4v11"/></svg>
+            예시 매물로 체험하기
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="result">
+      <div class="empty" id="empty">
+        <div class="empty-top">
+          <div class="ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
+          </div>
+          <h2>매물 정보를 입력해 주세요</h2>
+          <p>브랜드·모델·연식·매물가를 입력하고 분석하면 적정가와 위험도를 진단합니다. 입력이 번거롭다면 예시 매물로 바로 확인해 보세요.</p>
+          <button class="empty-cta" id="sample2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 11l-4 4-4-4M12 4v11"/></svg>
+            예시 매물로 체험하기
+          </button>
+        </div>
+        <div class="steps">
+          <h3>분석 방식</h3>
+          <div class="step"><div class="n">01</div><div class="c"><div class="st">적정가 산출</div><div class="sd">차령·주행거리로 기본 시세를 잡고, 브랜드·모델·지역 프리미엄을 더해 적정가를 계산합니다.</div></div></div>
+          <div class="step"><div class="n">02</div><div class="c"><div class="st">편차율 측정</div><div class="sd">매물가와 적정가의 차이를 비율로 환산해 시세에서 얼마나 벗어났는지 측정합니다.</div></div></div>
+          <div class="step"><div class="n">03</div><div class="c"><div class="st">위험도 판정</div><div class="sd">실거래 데이터 분포를 기준으로 정상·주의·위험 단계로 진단합니다.</div></div></div>
+          <div class="step"><div class="n">04</div><div class="c"><div class="st">근거 제시</div><div class="sd">어떤 조건이 가격을 올리고 내렸는지 요인별 기여도를 함께 제공합니다.</div></div></div>
+        </div>
+      </div>
+
+      <div id="output" class="hidden">
+        <div class="spec" id="spec"></div>
+
+        <div class="verdict" id="verdict">
+          <div class="v-head">
+            <div class="v-left">
+              <span class="v-dot"></span>
+              <div class="v-label">
+                <div class="grade" id="v-grade"></div>
+                <div class="sub" id="v-sub"></div>
+              </div>
+            </div>
+            <div class="v-score">
+              <div class="sc"><span id="v-score">0</span></div>
+              <div class="sl">위험도 / 100</div>
+            </div>
+          </div>
+          <div class="v-bar"><div class="v-fill" id="v-fill" style="width:0"></div></div>
+          <div class="v-msg" id="v-msg"></div>
+        </div>
+
+        <div class="mgrid">
+          <div class="mcard"><div class="ml">매물가</div><div class="mv" id="m-listed">—</div></div>
+          <div class="mcard"><div class="ml">AI 적정가</div><div class="mv" id="m-pred">—</div></div>
+          <div class="mcard"><div class="ml">가격 편차율</div><div class="mv" id="m-dev">—</div><div class="md" id="m-diff"></div></div>
+          <div class="mcard"><div class="ml">예측 불일치도</div><div class="mv" id="m-anom">—</div></div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><div class="st">적정가 구성</div><div class="sd">기본 시세에 차량별 프리미엄·할인을 반영해 산출합니다.</div></div>
+          <div class="sec-b">
+            <div class="bd">
+              <div class="bd-cell"><div class="l">기본 시세</div><div class="v" id="bd-base">—</div></div>
+              <div class="bd-cell" style="flex:0 0 44px"><div class="l">&nbsp;</div><div class="v op">+</div></div>
+              <div class="bd-cell"><div class="l">차량별 보정</div><div class="v" id="bd-adj">—</div></div>
+              <div class="bd-cell" style="flex:0 0 44px"><div class="l">&nbsp;</div><div class="v op">=</div></div>
+              <div class="bd-cell final"><div class="l">적정가</div><div class="v" id="bd-final">—</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><div class="st">가격 결정 요인</div><div class="sd">이 차량의 가격을 끌어올린(빨강) · 끌어내린(초록) 조건입니다.</div></div>
+          <div class="sec-b"><div class="fac" id="fac"></div></div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><div class="st">확인 사항</div></div>
+          <div class="sec-b"><div class="chk" id="chk"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div class="col">
+        <h4>시세선</h4>
+        <p>중고차 적정가 분석 서비스</p>
+        <p>한동대학교 ML 팀프로젝트</p>
+        <p>러닝머신팀 · 2026</p>
+      </div>
+      <div class="col">
+        <h4>분석 엔진</h4>
+        <p>Ridge + XGBoost 잔차 학습</p>
+        <p>예측 불일치 기반 이상 탐지</p>
+        <p>요인 기여도 분석</p>
+      </div>
+      <div class="col">
+        <h4>데이터</h4>
+        <p>전국 실거래 매물 44,623건</p>
+        <p>6개 브랜드 · 303개 모델 · 17개 지역</p>
+        <p>가격대 240 – 7,350만원</p>
+      </div>
+    </div>
+    <div class="foot-note">
+      본 분석 결과는 실거래 데이터에 기반한 통계적 추정이며 법적·금융적 판단의 근거가 아닙니다. 실제 거래 시에는 실물 점검, 자동차이력조회, 명의 확인 등 직접 검증을 반드시 병행하시기 바랍니다. 모델은 데이터 수집 시점을 기준으로 하며 계절·신차 출시 등 실시간 시장 변동은 반영하지 않습니다.
+    </div>
+  </div>
+</footer>
+
+<script src="engine.js"></script>
+<script>
+const SAMPLES=[
+  {brand:'현대',model:'팰리세이드',year:2021,mileage:72000,region:'경기',price:2690},
+  {brand:'제네시스',model:'GV80',year:2021,mileage:71000,region:'경기',price:4350},
+  {brand:'기아',model:'카니발 4세대',year:2021,mileage:78000,region:'',price:1200},
+  {brand:'르노코리아(삼성)',model:'QM6',year:2019,mileage:129000,region:'인천',price:790},
+  {brand:'제네시스',model:'G80 (RG3)',year:2021,mileage:80000,region:'',price:6000},
+  {brand:'현대',model:'그랜저 IG',year:2018,mileage:95000,region:'서울',price:1850},
+];
+let sampleIdx=-1;
+const $=id=>document.getElementById(id);
+let UI;
+const fmt=n=>Math.round(n).toLocaleString('ko-KR');
+const ICON_CHECK='<svg viewBox="0 0 24 24" fill="none" stroke="#2e7d54" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+const ICON_ALERT='<svg viewBox="0 0 24 24" fill="none" stroke="#b3382f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>';
+
+function populateBrands(){
+  const s=$('brand');s.innerHTML='';
+  UI.brands.forEach(b=>{const o=document.createElement('option');o.value=o.textContent=b;s.appendChild(o);});
+  s.value=UI.brands.includes('현대')?'현대':UI.brands[0];
+  populateModels();
+}
+function populateModels(){
+  const b=$('brand').value,s=$('model');s.innerHTML='';
+  (UI.brand_models[b]||[]).forEach(m=>{const o=document.createElement('option');o.value=o.textContent=m;s.appendChild(o);});
+}
+function populateRegions(){
+  const s=$('region');s.innerHTML='<option value="">선택 안 함</option>';
+  UI.regions.forEach(r=>{const o=document.createElement('option');o.value=o.textContent=r;s.appendChild(o);});
+}
+function loadSample(){
+  sampleIdx=(sampleIdx+1)%SAMPLES.length;
+  const p=SAMPLES[sampleIdx];
+  $('brand').value=p.brand;populateModels();
+  $('model').value=p.model;$('year').value=p.year;
+  $('mileage').value=p.mileage||'';$('region').value=p.region||'';$('price').value=p.price;
+  run();
+}
+function facName(f){
+  if(f.type==='brand'||f.type==='model')return f.value;
+  if(f.type==='region')return f.value+' 지역';
+  if(f.type==='car_age')return '연식·차령';
+  if(f.type==='mileage')return '주행거리';
+  return f.feature;
+}
+function run(){
+  const info={
+    brand:$('brand').value,model:$('model').value,year:parseInt($('year').value,10),
+    mileage:$('mileage').value===''?null:parseFloat($('mileage').value),
+    region:$('region').value===''?null:$('region').value,
+  };
+  const price=parseFloat($('price').value);
+  if(!info.brand||!info.model||!info.year||!price)return;
+  const btn=$('analyze');const orig=btn.textContent;
+  btn.innerHTML='<span class="spinner"></span>분석 중';btn.disabled=true;
+  setTimeout(()=>{
+    render(Engine.assess(info,price,true),info);
+    btn.textContent=orig;btn.disabled=false;
+    $('empty').classList.add('hidden');
+    const o=$('output');o.classList.remove('hidden','reveal');void o.offsetWidth;o.classList.add('reveal');
+    if(window.innerWidth<=880)o.scrollIntoView({behavior:'smooth',block:'start'});
+  },300);
+}
+function render(r,info){
+  const age=2026-info.year;
+  $('spec').innerHTML=
+    `<div class="spec-item"><div class="sl">브랜드</div><div class="sv">${info.brand}</div></div>`+
+    `<div class="spec-item"><div class="sl">모델</div><div class="sv">${info.model}</div></div>`+
+    `<div class="spec-item"><div class="sl">연식</div><div class="sv">${info.year}년 · ${age}년식</div></div>`+
+    `<div class="spec-item"><div class="sl">주행거리</div><div class="sv">${info.mileage?fmt(info.mileage)+' km':'평균 적용'}</div></div>`+
+    `<div class="spec-item"><div class="sl">지역</div><div class="sv">${info.region||'미지정'}</div></div>`;
+
+  const v=$('verdict');v.className='verdict';
+  let cls;
+  if(r.category.includes('Danger'))cls='danger';
+  else if(r.category.includes('Warning'))cls='warn';
+  else cls='fair';
+  v.classList.add(cls);
+  const map={'Fair':['적정','시세 범위 내 정상 매물'],
+    'Warning(저가)':['주의 · 저가','시세보다 다소 저렴'],
+    'Danger(저가)':['위험 · 저가','시세 대비 비정상적으로 저렴'],
+    'Warning(고가)':['주의 · 고가','시세보다 다소 비쌈'],
+    'Danger(고가)':['위험 · 고가','시세 대비 과도하게 비쌈']};
+  const [grade,sub]=map[r.category]||[r.category,''];
+  $('v-grade').textContent=grade;$('v-sub').textContent=sub;
+  $('v-msg').textContent=r.message;$('v-score').textContent=Math.round(r.risk);
+  setTimeout(()=>{$('v-fill').style.width=Math.min(r.risk,100)+'%';},50);
+
+  $('m-listed').innerHTML=fmt(r.listed)+' <small>만원</small>';
+  $('m-pred').innerHTML=fmt(r.predicted)+' <small>만원</small>';
+  const dev=r.deviation;
+  $('m-dev').innerHTML=(dev>=0?'+':'')+dev.toFixed(1)+'<small>%</small>';
+  $('m-dev').className='mv '+(Math.abs(dev)<8.3?'neu':(dev>0?'pos':'neg'));
+  const diff=r.listed-r.predicted;
+  $('m-diff').textContent=(diff>=0?'+':'')+fmt(diff)+'만원';
+  $('m-diff').className='md '+(diff>0?'pos':'neg');
+  $('m-anom').innerHTML=r.predDiffPct.toFixed(1)+'<small>%</small>';
+
+  $('bd-base').textContent=fmt(r.baseline)+'만';
+  $('bd-adj').textContent=(r.adjustment>=0?'+':'')+fmt(r.adjustment)+'만';
+  $('bd-final').textContent=fmt(r.predicted)+'만';
+
+  const fbox=$('fac');fbox.innerHTML='';
+  const maxAbs=Math.max(...r.factors.map(f=>Math.abs(f.price_effect_pct)),1);
+  r.factors.forEach(f=>{
+    const up=f.direction==='↑';
+    const w=Math.min(Math.abs(f.price_effect_pct)/maxAbs*50,50);
+    const row=document.createElement('div');row.className='fac-row';
+    row.innerHTML=`<div class="fac-name" title="${facName(f)}">${facName(f)}</div>`+
+      `<div class="fac-track"><div class="fac-bar ${up?'up':'down'}" style="width:${w}%"></div></div>`+
+      `<div class="fac-val ${up?'up':'down'}">${(f.price_effect_pct>=0?'+':'')}${f.price_effect_pct.toFixed(1)}%</div>`;
+    fbox.appendChild(row);
+  });
+
+  const cb=$('chk');cb.innerHTML='';
+  r.suggestions.forEach(s=>{
+    const alert=s.includes('[경고]');
+    const row=document.createElement('div');row.className='chk-row'+(alert?' alert':'');
+    row.innerHTML=`<span class="chk-ico">${alert?ICON_ALERT:ICON_CHECK}</span><span>${s.replace('[경고] ','')}</span>`;
+    cb.appendChild(row);
+  });
+}
+(async function(){
+  const meta=await Engine.load('model.json');
+  UI=meta.ui;
+  $('k-acc').innerHTML=meta.metrics.r2.toFixed(3);
+  $('k-err').innerHTML=meta.metrics.mape_pct.toFixed(1)+'<small>%</small>';
+  populateBrands();populateRegions();
+  $('brand').addEventListener('change',populateModels);
+  $('analyze').addEventListener('click',run);
+  $('sample').addEventListener('click',loadSample);
+  $('sample2').addEventListener('click',loadSample);
+})();
+</script>
+</body>
+</html>
